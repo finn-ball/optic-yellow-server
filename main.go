@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -20,17 +21,26 @@ var username, password, date string
 var hour uint
 var timeout = 20 * time.Second
 var timeToBook time.Time
+var headless bool
 
 func main() {
 	cmd()
-
-	if err := run(username, password, timeToBook); err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			log.Println("Timeout.")
-			log.Println("Timeout currently set to", timeout)
-			log.Fatal(err)
+	retries := 0
+	for retries < 3 {
+		if err := run(username, password, timeToBook, headless); err != nil {
+			if errors.Is(err, context.DeadlineExceeded) {
+				log.Println("Timeout.")
+				log.Println("Timeout currently set to", timeout)
+			}
+			log.Println(err)
+			if retries > 2 {
+				os.Exit(1)
+			}
+			log.Println("Retrying...")
+			retries += 1
+		} else {
+			break
 		}
-		log.Fatal(err)
 	}
 }
 
@@ -40,6 +50,7 @@ func cmd() {
 	flag.StringVar(&password, "p", "", `Password`)
 	flag.StringVar(&date, "d", "", `Date in the format DD/MM/YY`)
 	flag.UintVar(&hour, "h", 0, `Hour in the format HH (e.g "13" for 1pm)`)
+	flag.BoolVar(&headless, "headless", false, `Run in headless mode.`)
 	flag.Parse()
 	if !isFlagPassed("u") {
 		log.Fatal("Username not defined.")
@@ -88,14 +99,20 @@ func isFlagPassed(name string) bool {
 // run the program.
 // This will cause the bot to login, navigate to the booking page, book a court
 // and finally screenshot the result.
-func run(user, password string, date time.Time) error {
+func run(user, password string, date time.Time, headless bool) error {
 	// Set up the various contexts.
-	options := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag(`headless`, false),
-	)
-	ctx, cancel := chromedp.NewExecAllocator(context.Background(), options...)
-	defer cancel()
-	ctx, cancel = chromedp.NewContext(ctx)
+	var ctx context.Context
+	if headless {
+		ctx = context.Background()
+	} else {
+		var cancel context.CancelFunc
+		options := append(chromedp.DefaultExecAllocatorOptions[:],
+			chromedp.Flag(`headless`, false),
+		)
+		ctx, cancel = chromedp.NewExecAllocator(context.Background(), options...)
+		defer cancel()
+	}
+	ctx, cancel := chromedp.NewContext(ctx)
 	defer cancel()
 	ctx, cancel = context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -148,7 +165,7 @@ func login(ctx context.Context, user string, password string) error {
 // of the dates available.
 // It will also attempt to take a screenshot of the availability.
 func bookingPage(ctx context.Context) error {
-	defer takeScreenshot(ctx, "availability.png")
+	defer takeScreenshot(ctx, "availability_1.png")
 	return chromedp.Run(ctx,
 		// Bookings drop down box.
 		click("ctl00_ctl12_Li3"),
@@ -165,6 +182,7 @@ func bookingPage(ctx context.Context) error {
 
 // traverseSlotsGrid will iterate through the table to find an available date.
 func traverseSlotsGrid(ctx context.Context, date time.Time) (string, error) {
+	defer takeScreenshot(ctx, "availability_2.png")
 	var nodes []*cdp.Node
 	err := chromedp.Run(ctx,
 		// Ensure whole table is visible.
