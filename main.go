@@ -39,6 +39,7 @@ func main() {
 			log.Println("Retrying...")
 			retries += 1
 		} else {
+			log.Println("Successfully booked.")
 			break
 		}
 	}
