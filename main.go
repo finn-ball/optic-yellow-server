@@ -19,7 +19,7 @@ import (
 
 var username, password, date string
 var hour uint
-var timeout = 20 * time.Second
+var timeout = 60 * time.Second
 var timeToBook time.Time
 var headless bool
 
