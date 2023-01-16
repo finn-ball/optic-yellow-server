@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package optic_yellow;
+
+option go_package = "github.com/finn-ball/optic-yellow-server/pkg/proto";
+
+import "google/protobuf/timestamp.proto";
+
+service OpticYellowService { rpc Run(RunRequest) returns (RunResponse); }
+
+message RunRequest {
+  oneof Request {
+    Login login = 1;
+    Login list = 2;
+    BookingRequest booking = 3;
+    BookingRequest cancel = 4;
+  }
+}
+
+message RunResponse { repeated BookingResponse booking = 1; }
+
+message Login {
+  string username = 1;
+  string password = 2;
+}
+
+message BookingRequest {
+  Login login = 1;
+  google.protobuf.Timestamp datetime = 2;
+}
+
+message BookingResponse {
+  enum Status {
+    PENDING = 0;
+    SUCCESSFUL = 1;
+    FAILED = 2;
+    CANCELLED = 3;
+  }
+  Status status = 1;
+  google.protobuf.Timestamp datetime = 2;
+}

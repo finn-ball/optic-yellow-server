@@ -1,8 +1,16 @@
 # Optic Yellow
 
-Automate the booking of the tennis courts.
-
-e.g
+Automate booking tennis courts.
+```sh
+go run main.go
 ```
-go run main.go -u me@email.com -p password -d 05/04/22 -h 15
+
+## Protobufs
+
+To generate, run:
+```sh
+protoc -I="$PWD"/pkg/proto \
+--go_opt=paths=source_relative --go_out="$PWD"/pkg/proto/ \
+--go-grpc_opt=paths=source_relative --go-grpc_out="$PWD"/pkg/proto/ \
+"$PWD"/pkg/proto/optic_yellow.proto
 ```
